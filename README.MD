@@ -6,19 +6,19 @@ This project provides a suite of tools to detect duplicate files within a direct
 
 This repository contains three distinct scripts to handle different duplicate detection needs:
 
-1. **`main_hybrid.py` (Recommended)**
+1. **`main.py` (Recommended)**
 * **Logic:** Combines both methods below. It automatically detects file types.
 * **Text files (.txt, .pdf, .docx):** Analyzed via TF-IDF to find content similarity (e.g., "90% similar").
 * **Binary files (Images, Zips, Exes, etc.):** Analyzed via SHA256 Hashing for exact matches.
 * **Best for:** General cleanup of download folders or mixed archives.
 
 
-2. **`tfidf_only.py`**
+2. **`tfidf.py`**
 * **Logic:** Purely text analysis. Ignores non-text files.
 * **Best for:** Cleaning up document libraries, finding plagiarized text, or consolidating versioned drafts of papers.
 
 
-3. **`hashing_only.py`**
+3. **`binary_hashing.py`**
 * **Logic:** Purely cryptographic hashing (SHA256).
 * **Best for:** Finding exact duplicates of images, videos, installers, or backups. Fast and 100% accurate for exact copies.
 
