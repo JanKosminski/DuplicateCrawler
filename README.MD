@@ -124,7 +124,7 @@ The `duplicate_report.csv` contains the following columns:
 | 1.0000 | `C:/.../image_copy.png` | `C:/.../image_original.png` |
 | 0.9452 | `C:/.../Draft_v1.docx` | `C:/.../Final_Report.docx` |
 
-License
+##  License
 This project is licensed under the MIT License.
 You are free to use, modify, and distribute this code as you wish, provided you include the original license and attribution. Feel free to reach out or open a pull request!
 
