@@ -103,7 +103,7 @@ Used for all other file extensions.
 
 ## ⚙ Configuration
 
-You can tweak the sensitivity of the text matching in the `main_hybrid.py` or `tfidf_only.py` scripts:
+You can tweak the sensitivity of the text matching in the `main.py` or `tfidf.py` scripts:
 
 ```python
 # In main():
