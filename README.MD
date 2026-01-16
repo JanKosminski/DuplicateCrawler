@@ -52,7 +52,7 @@ pip install scikit-learn numpy pdfminer.six python-docx
 
 ### 1. Configure the Target Directory
 
-Open the script you wish to run (e.g., `main_hybrid.py`) and locate the `main()` function at the bottom. Change the `mounted_drive` variable to the folder you want to scan:
+Open the script you wish to run (e.g., `main.py`) and locate the `main()` function at the bottom. Change the `mounted_drive` variable to the folder you want to scan:
 
 ```python
 def main():
