@@ -15,8 +15,20 @@ from pdfminer.pdfparser import PDFSyntaxError
 
 def extract_text(path):
     """
-    Determines file type by extension and extracts text content.
-    Returns None if the file is not a supported text format or fails to read.
+    Identifies the file type by extension and attempts to extract its raw text content.
+
+    This function acts as a wrapper for specific file handlers (PDFMiner, python-docx).
+    It is designed to fail silently for corrupt files to allow the scanning process
+    to continue uninterrupted.
+
+    Args:
+        path (str | Path): The file path to process.
+
+    Returns:
+        str | None: The extracted text string if successful. Returns None if:
+            - The file extension is not supported (.txt, .pdf, .docx).
+            - The file is corrupt or unreadable.
+            - An exception occurs during parsing.
     """
     path_str = str(path)
     try:
@@ -36,11 +48,30 @@ def extract_text(path):
 
         return None
     except Exception as e:
-        print(f"[WARN] Failed to extract {path_str}: {e}")
+        print(f"[WARNING] Failed to extract {path_str}: {e}")
         return None
 
 
 def text_clean(text_data: str) -> str:
+    """
+    Normalizes raw text data to facilitate fuzzy matching.
+
+    This removes formatting differences that shouldn't count as "unique" content,
+    such as capitalization, variable whitespace, or specific Unicode representations.
+
+    Args:
+        text_data (str): The raw input string.
+
+    Returns:
+        str: The normalized string. Returns an empty string if input is None or empty.
+
+    Transformations:
+        1. Unicode Normalization (NFKD): Decomposes characters (e.g., splits accented
+           characters into base char + combining diacritic).
+        2. Lowercasing: Converts all characters to lowercase.
+        3. Whitespace Collapsing: Converts tabs, newlines, and multi-spaces into
+           a single space character.
+    """
     if not text_data:
         return ""
     # Normalize unicode characters
@@ -52,13 +83,37 @@ def text_clean(text_data: str) -> str:
 
 
 def hash_text(text):
-    """Hashes the cleaned text content."""
+    """
+    Generates a SHA256 hash based on the content of a text string.
+
+    This is used for 'semantic' deduplication, where the text content matters
+    more than the file container (e.g., a .docx and .pdf with the same words).
+
+    Args:
+        text (str): The text content to hash.
+
+    Returns:
+        str: A hexadecimal string representing the SHA256 hash.
+    """
     clean = text_clean(text)
     return hashlib.sha256(clean.encode("utf-8")).hexdigest()
 
 
 def hash_binary(path, block_size=65536):
-    """Hashes the file bit-for-bit (fallback for non-text files)."""
+    """
+    Generates a SHA256 hash based on the binary file content (bit-for-bit).
+
+    Used as a fallback when text extraction fails or is not applicable
+    (e.g., images, executables, or scanned PDFs without OCR).
+
+    Args:
+        path (str): The file path to read.
+        block_size (int, optional): The chunk size in bytes for reading the file.
+                                    Defaults to 64KB (65536).
+
+    Returns:
+        str | None: The hex digest of the hash, or None if the file could not be read.
+    """
     sha = hashlib.sha256()
     try:
         with open(path, "rb") as f:
@@ -72,10 +127,20 @@ def hash_binary(path, block_size=65536):
 
 def hash_file(path):
     """
-    Main hashing logic:
-    1. Try to extract text.
-    2. If text exists, hash the cleaned text (fuzzy match).
-    3. If no text (image/zip/unknown), hash the binary content (exact match).
+    Orchestrates the hashing strategy for a single file.
+
+    Implements a hybrid strategy:
+    1. Attempt Semantic Hashing: Try to extract text. If successful, hash the
+       cleaned text. This allows detecting duplicates across different formats
+       (e.g., PDF vs DOCX).
+    2. Fallback to Binary Hashing: If text extraction fails (unsupported format
+       or parse error), hash the raw file bytes.
+
+    Args:
+        path (str): The location of the file to hash.
+
+    Returns:
+        str: The computed hash digest.
     """
     print(f"Scanning: {path}")  # Moved print here to see progress
     text = extract_text(path)
@@ -89,28 +154,64 @@ def hash_file(path):
 
 
 def crawl_directory(root_path):
+    """
+    Recursively iterates over a directory tree yielding file paths.
+
+    Args:
+        root_path (str): The starting directory path.
+
+    Yields:
+        Path: A Path object for every file found within the root_path
+              and its subdirectories.
+    """
     root = Path(root_path)
     for dirpath, _, filenames in os.walk(root):
         for name in filenames:
             yield Path(dirpath) / name
 
 
-def find_duplicates(root_path):
+def find_duplicates(root_paths):
+    """
+    Scans directories and identifies files that share the same hash.
+
+    Args:
+        root_paths (str | list): A single directory path or a list of directory paths
+                                 to scan.
+
+    Returns:
+        dict: A dictionary where:
+            - Key: The file hash (str).
+            - Value: A list of file paths (list[str]) associated with that hash.
+            Only entries with >1 file path (duplicates) are returned.
+    """
     hash_map = defaultdict(list)
+    # if single path is supplied
+    if isinstance(root_paths, (str, Path)):
+        root_paths = [root_paths]
 
-    for file_path in crawl_directory(root_path):
-        # FIX IS HERE: Pass the path, not the extracted text
-        file_hash = hash_file(str(file_path))
-
-        if file_hash:
-            hash_map[file_hash].append(str(file_path))
+    for rpath in root_paths:
+        for file_path in crawl_directory(rpath):
+            file_hash = hash_file(str(file_path))
+            if file_hash:
+                hash_map[file_hash].append(str(file_path))
 
     # Filter for hashes that appear more than once
     return {h: paths for h, paths in hash_map.items() if len(paths) > 1}
 
 
-def save_to_csv(data :dict, filename="duplicate_report.csv"):
-    """Exports the list of tuples to a CSV file."""
+def save_to_csv(data: dict, filename="duplicate_report.csv"):
+    """
+    Exports the identified duplicates to a CSV file.
+
+    Args:
+        data (dict): The dictionary of duplicates returned by find_duplicates.
+        filename (str, optional): The intended filename for the report.
+                                  Note: Current implementation writes to '../output.csv'.
+
+    Side Effects:
+        Writes a file to the disk at '../output.csv'.
+        Prints success or error messages to stdout.
+    """
     try:
         with open("../output.csv", "w", newline="") as f:
             writer = csv.writer(f)
@@ -124,6 +225,12 @@ def save_to_csv(data :dict, filename="duplicate_report.csv"):
 
 
 def main():
+    """
+    Main entry point for the script.
+
+    Sets the target directory, initiates the scan, prints results to console,
+    and saves the CSV report.
+    """
     # Update this path to your target directory
     mounted_drive = "C:/Users/janko/Downloads"
 

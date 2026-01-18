@@ -59,33 +59,67 @@ def hash_binary(path, block_size=65536):
     return sha.hexdigest()
 
 
-def load_documents(root_path):
-    """Separates files into text-processable and binary paths."""
+def scan_paths(root_paths):
+    """
+    Generator that recursively walks through one or multiple root directories.
+
+    Args:
+        root_paths (str | Path | list): A single path or a list of paths to scan.
+
+    Yields:
+        Path: Path objects for every file found.
+    """
+    # Encapsulate single item to list.
+    if isinstance(root_paths, (str, Path)):
+        root_paths = [root_paths]
+
+    for root in root_paths:
+        print(f"Scanning directory: {root}")
+        path_obj = Path(root)
+
+        # Check if path exists to avoid crashing on invalid drives
+        if not path_obj.exists():
+            print(f"[WARNING] Path not found: {root}")
+            continue
+
+        for dirpath, _, filenames in os.walk(path_obj):
+            for name in filenames:
+                yield Path(dirpath) / name
+
+
+def load_documents(root_paths):
+    """
+    Aggregates files from multiple locations and separates them into
+    text-processable and binary categories.
+
+    Args:
+        root_paths (str | list): The directory or directories to process.
+
+    Returns:
+        tuple: (text_file_paths, documents, binary_file_paths)
+    """
     text_file_paths = []
     documents = []
     binary_file_paths = []
 
-    print(f"Scanning directory: {root_path}")
-    root = Path(root_path)
-
-    for dirpath, _, filenames in os.walk(root):
-        for name in filenames:
-            path = Path(dirpath) / name
-
-            # Check extension to decide handling
-            if path.suffix.lower() in ['.txt', '.pdf', '.docx']:
-                raw_text = extract_text(str(path))
-                if raw_text:
-                    cleaned = text_clean(raw_text)
-                    if len(cleaned) > 50:
-                        text_file_paths.append(str(path))
-                        documents.append(cleaned)
-                    else:
-                        # Text was too short or empty, treat as binary/ignore or log
-                        pass
+    # Iterating over the generator function to get a flat stream of files
+    for path in scan_paths(root_paths):
+        if path.suffix.lower() in ['.txt', '.pdf', '.docx']:
+            raw_text = extract_text(str(path))
+            if raw_text:
+                cleaned = text_clean(raw_text)
+                # Filter out empty or very short files (likely not meaningful content)
+                if len(cleaned) > 50:
+                    text_file_paths.append(str(path))
+                    documents.append(cleaned)
+                else:
+                    pass
             else:
-                # Add to binary list for hashing
+                #fallback in case text is corrupted
                 binary_file_paths.append(str(path))
+        else:
+            # Add non-text files to binary list for standard hashing
+            binary_file_paths.append(str(path))
 
     return text_file_paths, documents, binary_file_paths
 
@@ -156,7 +190,7 @@ def save_to_csv(results, filename="duplicate_report.csv"):
 
 
 def main():
-    # Update this path to your actual directory
+    # Update this path to your actual directory or list of directories
     mounted_drive = "C:/Users/janko/Downloads"
 
     # 1. Load and sort files
