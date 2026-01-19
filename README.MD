@@ -128,10 +128,10 @@ python mixed.py
 You can tweak the sensitivity of the text matching in `mixed.py` or `tfidf.py`:
 
 ```python
-# In main() or find_duplicates_tfidf():
-# threshold=0.90 means files must be 90% similar to be reported.
-# Lower this to 0.80 to find looser matches.
-#text_results = find_duplicates_tfidf(text_paths, docs, threshold=0.90)
+In main() or find_duplicates_tfidf():
+threshold=0.90 means files must be 90% similar to be reported.
+Lower this to 0.80 to find looser matches.
+text_results = find_duplicates_tfidf(text_paths, docs, threshold=0.90)
 
 ```
 
@@ -149,5 +149,3 @@ The `duplicate_report.csv` contains the following columns:
 ## License
 
 This project is licensed under the MIT License. You are free to use, modify, and distribute this code as you wish.
-
-```

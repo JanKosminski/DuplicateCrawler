@@ -15,7 +15,7 @@ class FileProcessorGUI:
         # Checkbox frame
         chkbx_frame = tk.Frame(root)
         chkbx_frame.pack(pady=5)
-        self.selected = tk.StringVar()
+        self.selected = tk.StringVar(value="B")
         rbutton1 = tk.Radiobutton(chkbx_frame, text="Pure Hashing", variable=self.selected, value="A")
         rbutton2 = tk.Radiobutton(chkbx_frame, text="Text analysis (NLP) + Binary Hashing", variable=self.selected, value="B")
         rbutton3 = tk.Radiobutton(chkbx_frame, text="Text analysis (NLP text only, ignore other formats)", variable=self.selected, value="C")
