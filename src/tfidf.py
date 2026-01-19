@@ -1,47 +1,12 @@
 import os
 import csv
-import re
-import unicodedata
 import numpy as np
 from pathlib import Path
 
 # Scikit-learn imports
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
-# Extraction imports
-from pdfminer.high_level import extract_text as pdf_text
-from docx import Document
-from pdfminer.pdfdocument import PDFNoValidXRef
-from pdfminer.pdfparser import PDFSyntaxError
-
-
-def extract_text(path):
-    path_str = str(path)
-    try:
-        if path_str.endswith(".txt"):
-            with open(path_str, "r", errors="ignore", encoding="utf-8") as f:
-                return f.read()
-        if path_str.endswith(".pdf"):
-            try:
-                return pdf_text(path_str)
-            except (PDFSyntaxError, PDFNoValidXRef, Exception):
-                return None
-        if path_str.endswith(".docx"):
-            doc = Document(path_str)
-            return "\n".join(p.text for p in doc.paragraphs)
-        return None
-    except Exception:
-        return None
-
-
-def text_clean(text_data: str) -> str:
-    if not text_data:
-        return ""
-    text_data = unicodedata.normalize("NFKD", text_data)
-    text_data = text_data.lower()
-    text_data = re.sub(r"\s+", " ", text_data)
-    return text_data.strip()
+from text_utils import text_clean, extract_text
 
 
 def load_documents(root_path):
@@ -111,8 +76,8 @@ def save_to_csv(results, filename="duplicate_report.csv"):
         print(f"\n[ERROR] Could not save CSV: {e}")
 
 
-def main():
-    mounted_drive = "C:/Users/janko/Downloads"
+def main(mounted_drive = "C:/Users/janko/Downloads"):
+
 
     # 1. Run the scan
     results = find_duplicates_tfidf(mounted_drive, threshold=0.90)
@@ -131,6 +96,3 @@ def main():
 
     # 4. Save to CSV
     save_to_csv(results)
-
-
-main()

@@ -1,228 +1,67 @@
-import hashlib
-import os
-import csv
-import re
-from collections import defaultdict
-import unicodedata
-import numpy as np
-from pathlib import Path
+from mixed import main as mixed_main
+from binary_hashing import main as binary_main
+from tfidf import main as tfdif_main
+import tkinter as tk
+from tkinter import filedialog, messagebox
 
-# Scikit-learn imports
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
+class FileProcessorGUI:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Double file checker")
 
-# Extraction imports
-from pdfminer.high_level import extract_text as pdf_text
-from docx import Document
-from pdfminer.pdfdocument import PDFNoValidXRef
-from pdfminer.pdfparser import PDFSyntaxError
+        # Listbox to show file paths
+        self.listbox = tk.Listbox(root, width=80, height=12)
+        self.listbox.pack(padx=10, pady=10)
+        # Checkbox frame
+        chkbx_frame = tk.Frame(root)
+        chkbx_frame.pack(pady=5)
+        self.selected = tk.StringVar()
+        rbutton1 = tk.Radiobutton(chkbx_frame, text="Pure Hashing", variable=self.selected, value="A")
+        rbutton2 = tk.Radiobutton(chkbx_frame, text="Text analysis (NLP) + Binary Hashing", variable=self.selected, value="B")
+        rbutton3 = tk.Radiobutton(chkbx_frame, text="Text analysis (NLP text only, ignore other formats)", variable=self.selected, value="C")
+        rbutton1.pack(anchor="w")
+        rbutton2.pack(anchor="w")
+        rbutton3.pack(anchor="w")
+        # Buttons frame
+        btn_frame = tk.Frame(root)
+        btn_frame.pack(pady=5)
 
-
-def extract_text(path):
-    path_str = str(path)
-    try:
-        if path_str.endswith(".txt"):
-            with open(path_str, "r", errors="ignore", encoding="utf-8") as f:
-                return f.read()
-        if path_str.endswith(".pdf"):
-            try:
-                return pdf_text(path_str)
-            except (PDFSyntaxError, PDFNoValidXRef, Exception):
-                return None
-        if path_str.endswith(".docx"):
-            doc = Document(path_str)
-            return "\n".join(p.text for p in doc.paragraphs)
-        return None
-    except Exception:
-        return None
+        tk.Button(btn_frame, text="Add Directories", command=self.add_files).grid(row=0, column=0, padx=5)
+        tk.Button(btn_frame, text="Remove Selected", command=self.remove_selected).grid(row=0, column=1, padx=5)
+        tk.Button(btn_frame, text="Process Directories", command=self.process_files).grid(row=0, column=2, padx=5)
 
 
-def text_clean(text_data: str) -> str:
-    if not text_data:
-        return ""
-    text_data = unicodedata.normalize("NFKD", text_data)
-    text_data = text_data.lower()
-    text_data = re.sub(r"\s+", " ", text_data)
-    return text_data.strip()
 
+    def add_files(self):
+        # askdirectory returns a single string, or an empty string if cancelled
+        folder_path = filedialog.askdirectory(title="Select Folder")
+        # Check if the user actually selected a folder (didn't press Cancel)
+        if folder_path:
+            self.listbox.insert(tk.END, folder_path)
 
-def hash_binary(path, block_size=65536):
-    """Hashes the file bit-for-bit."""
-    sha = hashlib.sha256()
-    try:
-        with open(path, "rb") as f:
-            for block in iter(lambda: f.read(block_size), b""):
-                sha.update(block)
-    except Exception as e:
-        print(f"[WARN] Could not read binary file {path}: {e}")
-        return None
-    return sha.hexdigest()
+    def remove_selected(self):
+        selected = list(self.listbox.curselection())
+        selected.reverse()  # remove from bottom to avoid index shift
+        for index in selected:
+            self.listbox.delete(index)
 
-
-def scan_paths(root_paths):
-    """
-    Generator that recursively walks through one or multiple root directories.
-
-    Args:
-        root_paths (str | Path | list): A single path or a list of paths to scan.
-
-    Yields:
-        Path: Path objects for every file found.
-    """
-    # Encapsulate single item to list.
-    if isinstance(root_paths, (str, Path)):
-        root_paths = [root_paths]
-
-    for root in root_paths:
-        print(f"Scanning directory: {root}")
-        path_obj = Path(root)
-
-        # Check if path exists to avoid crashing on invalid drives
-        if not path_obj.exists():
-            print(f"[WARNING] Path not found: {root}")
-            continue
-
-        for dirpath, _, filenames in os.walk(path_obj):
-            for name in filenames:
-                yield Path(dirpath) / name
-
-
-def load_documents(root_paths):
-    """
-    Aggregates files from multiple locations and separates them into
-    text-processable and binary categories.
-
-    Args:
-        root_paths (str | list): The directory or directories to process.
-
-    Returns:
-        tuple: (text_file_paths, documents, binary_file_paths)
-    """
-    text_file_paths = []
-    documents = []
-    binary_file_paths = []
-
-    # Iterating over the generator function to get a flat stream of files
-    for path in scan_paths(root_paths):
-        if path.suffix.lower() in ['.txt', '.pdf', '.docx']:
-            raw_text = extract_text(str(path))
-            if raw_text:
-                cleaned = text_clean(raw_text)
-                # Filter out empty or very short files (likely not meaningful content)
-                if len(cleaned) > 50:
-                    text_file_paths.append(str(path))
-                    documents.append(cleaned)
-                else:
-                    pass
-            else:
-                #fallback in case text is corrupted
-                binary_file_paths.append(str(path))
-        else:
-            # Add non-text files to binary list for standard hashing
-            binary_file_paths.append(str(path))
-
-    return text_file_paths, documents, binary_file_paths
-
-
-def find_duplicates_tfidf(paths, documents, threshold=0.90):
-    """Compares text content using TF-IDF."""
-    n_files = len(documents)
-    if n_files < 2:
-        print("Not enough text files found to compare via TF-IDF.")
-        return []
-
-    print(f"Vectorizing {n_files} text documents...")
-    vectorizer = TfidfVectorizer(stop_words=None)
-    tfidf_matrix = vectorizer.fit_transform(documents)
-
-    print("Calculating Cosine Similarity...")
-    cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
-
-    print(f"Filtering text results > {threshold * 100}%...")
-    duplicates = []
-    rows, cols = np.where(cosine_sim > threshold)
-
-    for r, c in zip(rows, cols):
-        if r < c:
-            sim_score = cosine_sim[r, c]
-            duplicates.append((paths[r], paths[c], sim_score))
-
-    return duplicates
-
-
-def find_duplicates_binary(paths):
-    """Compares non-text files using SHA256 hashing."""
-    if not paths:
-        print("No binary files to hash.")
-        return []
-
-    print(f"Hashing {len(paths)} binary files...")
-    hash_map = defaultdict(list)
-    results = []
-
-    for p in paths:
-        file_hash = hash_binary(p)
-        if file_hash:
-            hash_map[file_hash].append(p)
-
-    # Find collisions (identical hashes)
-    for _, files in hash_map.items():
-        if len(files) > 1:
-            # Generate pairs for all identical files
-            for i in range(len(files)):
-                for j in range(i + 1, len(files)):
-                    # Score is 1.0 because hashes are identical
-                    results.append((files[i], files[j], 1.0))
-
-    return results
-
-
-def save_to_csv(results, filename="duplicate_report.csv"):
-    try:
-        with open(filename, mode='w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(["Similarity Score", "File A", "File B"])
-            for file_a, file_b, score in results:
-                writer.writerow([f"{score:.4f}", file_a, file_b])
-        print(f"\n[SUCCESS] Report saved to: {os.path.abspath(filename)}")
-    except Exception as e:
-        print(f"\n[ERROR] Could not save CSV: {e}")
-
-
-def main():
-    # Update this path to your actual directory or list of directories
-    mounted_drive = "C:/Users/janko/Downloads"
-
-    # 1. Load and sort files
-    text_paths, docs, binary_paths = load_documents(mounted_drive)
-
-    all_results = []
-
-    # 2. Process Text Files (TF-IDF)
-    if text_paths:
-        text_results = find_duplicates_tfidf(text_paths, docs, threshold=0.90)
-        all_results.extend(text_results)
-
-    # 3. Process Binary Files (Hashing)
-    if binary_paths:
-        binary_results = find_duplicates_binary(binary_paths)
-        all_results.extend(binary_results)
-
-    if not all_results:
-        print("\nNo duplicates found.")
-        return
-
-    # 4. Sort by score (Highest first)
-    all_results.sort(key=lambda x: x[2], reverse=True)
-
-    # 5. Print to console
-    print(f"\nFound {len(all_results)} pairs. Showing top 5:")
-    for file_a, file_b, score in all_results[:5]:
-        print(f"[{score:.1%}] {os.path.basename(file_a)} <-> {os.path.basename(file_b)}")
-
-    # 6. Save to CSV
-    save_to_csv(all_results)
-
+    def process_files(self):
+        directory_list = list(self.listbox.get(0, tk.END))
+        mode = str(self.selected.get())
+        if not directory_list:
+            messagebox.showwarning("No directories selected", "Please add directories first.")
+            return
+        print(directory_list)
+        match mode:
+            case "A":
+                binary_main(directory_list)
+            case "B":
+                mixed_main(directory_list)
+            case "C":
+                tfdif_main(directory_list)
+        messagebox.showinfo("Done", "Processing complete.")
 
 if __name__ == "__main__":
-    main()
+    root = tk.Tk()
+    app = FileProcessorGUI(root)
+    root.mainloop()
