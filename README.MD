@@ -61,7 +61,7 @@ You can run the tool using the new GUI or via the command line.
 
 1. Run the interface script:
 ```bash
-python gui.py
+python main.py
 
 ```
 
@@ -83,8 +83,7 @@ If you prefer running the scripts directly or integrating them into a pipeline, 
 1. Open the specific script (e.g., `mixed.py`) and locate the `main()` function.
 2. Update the `mounted_drive` variable to your target path:
 ```python
-#def main(mounted_drive = "C:/path/to/your/folder"):
-
+def main(mounted_drive = "C:/path/to/your/folder"):
 ```
 
 

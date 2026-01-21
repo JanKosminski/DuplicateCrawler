@@ -1,9 +1,13 @@
 from pdfminer.high_level import extract_text as pdf_text
 from docx import Document
-from pdfminer.pdfdocument import PDFNoValidXRef
-from pdfminer.pdfparser import PDFSyntaxError
+from pdfminer.pdfdocument import PDFNoValidXRef, PDFDocument
+from pdfminer.pdfparser import PDFSyntaxError, PDFParser
 import unicodedata
 import re
+import logging
+
+# Silencing spam from pdfminer
+logging.getLogger("pdfminer").setLevel(logging.CRITICAL)
 
 
 def extract_text(path):
@@ -30,6 +34,29 @@ def extract_text(path):
                 return f.read()
         if path_str.endswith(".pdf"):
             try:
+                # Peeking into .pdf file
+                with open(path_str, 'rb') as fp:
+                    parser = PDFParser(fp)
+                    doc = PDFDocument(parser)
+                    # Grabing metadata
+                    info = doc.info[0] if doc.info else {}
+
+                    def decode_meta(val):
+                        """Decodes meta information from bytes."""
+                        if isinstance(val, bytes):
+                            return val.decode('utf-8', 'ignore').lower()
+                        return str(val).lower()
+
+                    producer = decode_meta(info.get('Producer', '')).lower()
+                    creator = decode_meta(info.get('Creator', '')).lower()
+
+                    # If we see these names, we ABORT before reading pages
+                    cad_signatures = ['autocad', 'bentley', 'microstation', 'revit', 'bluebeam', 'graphisoft']
+
+                    if any(sig in producer for sig in cad_signatures) or \
+                            any(sig in creator for sig in cad_signatures):
+                        print(f"[INFO] Skipped CAD/Vector PDF: {path_str}")
+                        return None
                 return pdf_text(path_str)
             except (PDFSyntaxError, PDFNoValidXRef, Exception):
                 return None

@@ -20,7 +20,7 @@ def hash_binary(path, block_size=65536):
             for block in iter(lambda: f.read(block_size), b""):
                 sha.update(block)
     except Exception as e:
-        print(f"[WARN] Could not read binary file {path}: {e}")
+        print(f"[WARNING] Could not read binary file {path}: {e}")
         return None
     return sha.hexdigest()
 
@@ -70,6 +70,7 @@ def load_documents(root_paths):
 
     # Iterating over the generator function to get a flat stream of files
     for path in scan_paths(root_paths):
+        print(f"Attempting to load {path}")
         if path.suffix.lower() in ['.txt', '.pdf', '.docx']:
             raw_text = extract_text(str(path))
             if raw_text:
