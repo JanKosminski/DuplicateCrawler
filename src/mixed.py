@@ -156,7 +156,7 @@ def save_to_csv(results, filename="duplicate_report.csv"):
         print(f"\n[ERROR] Could not save CSV: {e}")
 
 
-def main(mounted_drive = "C:/Users/janko/Downloads"):
+def main(mounted_drive = "C:/Users"):
     # Update this path to your actual directory or list of directories
 
 

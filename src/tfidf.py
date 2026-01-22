@@ -76,7 +76,7 @@ def save_to_csv(results, filename="duplicate_report.csv"):
         print(f"\n[ERROR] Could not save CSV: {e}")
 
 
-def main(mounted_drive = "C:/Users/janko/Downloads"):
+def main(mounted_drive = "C:/Users"):
 
 
     # 1. Run the scan

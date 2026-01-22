@@ -157,7 +157,7 @@ def main(mounted_drive):
     and saves the CSV report.
     """
     # Update this path to your target directory
-    mounted_drive = "C:/Users/janko/Downloads"
+    mounted_drive = "C:/Users"
 
     if not os.path.exists(mounted_drive):
         print(f"Error: Path {mounted_drive} does not exist.")
