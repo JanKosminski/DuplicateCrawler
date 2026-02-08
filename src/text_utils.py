@@ -120,10 +120,10 @@ def extract_text(path : Path):
     """
     path_str = str(path)
     try:
-        if path.suffix == '.txt':
+        if path_str.endswith(".txt"):
             with open(path_str, "r", errors="ignore", encoding="utf-8") as f:
                 return f.read()
-        if path.suffix == '.pdf':
+        if path_str.endswith(".pdf"):
             try:
                 # Peeking into .pdf file
                 if is_created_by_cad_software(path_str):
@@ -135,7 +135,7 @@ def extract_text(path : Path):
                 return pdf_text(path_str)
             except (PDFSyntaxError, PDFNoValidXRef, Exception):
                 return None
-        if path.suffix == '.docx':
+        if path_str.endswith(".docx"):
             doc = Document(path_str)
             return "\n".join(p.text for p in doc.paragraphs)
         return None
