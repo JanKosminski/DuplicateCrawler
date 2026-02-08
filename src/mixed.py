@@ -82,7 +82,7 @@ def load_documents(root_paths):
                 else:
                     pass
             else:
-                #fallback in case text is corrupted
+                #fallback in case text is corrupted or has a vector image inside
                 binary_file_paths.append(str(path))
         else:
             # Add non-text files to binary list for standard hashing

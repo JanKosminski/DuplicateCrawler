@@ -5,6 +5,7 @@ from pdfminer.pdfdocument import PDFNoValidXRef, PDFDocument
 from pdfminer.pdfinterp import PDFResourceManager, PDFPageInterpreter
 from pdfminer.pdfpage import PDFPage
 from pdfminer.pdfparser import PDFSyntaxError, PDFParser
+from pathlib import Path
 import unicodedata
 import re
 import logging
@@ -100,7 +101,7 @@ def is_created_by_cad_software(path):
         return True
 
 
-def extract_text(path):
+def extract_text(path : Path):
     """
     Identifies the file type by extension and attempts to extract its raw text content.
 
@@ -119,10 +120,10 @@ def extract_text(path):
     """
     path_str = str(path)
     try:
-        if path_str.endswith(".txt"):
+        if path.suffix == '.txt':
             with open(path_str, "r", errors="ignore", encoding="utf-8") as f:
                 return f.read()
-        if path_str.endswith(".pdf"):
+        if path.suffix == '.pdf':
             try:
                 # Peeking into .pdf file
                 if is_created_by_cad_software(path_str):
@@ -134,7 +135,7 @@ def extract_text(path):
                 return pdf_text(path_str)
             except (PDFSyntaxError, PDFNoValidXRef, Exception):
                 return None
-        if path_str.endswith(".docx"):
+        if path.suffix == '.docx':
             doc = Document(path_str)
             return "\n".join(p.text for p in doc.paragraphs)
         return None
